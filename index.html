@@ -393,6 +393,20 @@ var Core = (function () {
     return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
   }
 
+  /* OCR confuses S/5, O/0, I/1, Z/2 in the lot. A confusable letter that sits right before
+     an all-digit tail is read as the digit (LPS772 -> LP5772); B and G are left alone (common prefixes). */
+  function fixLot(lot) {
+    var a = String(lot || '').toUpperCase().split(''), map = { S: '5', O: '0', I: '1', Z: '2' }, fixed = false;
+    var end = a.length;
+    while (end > 0 && /\d/.test(a[end - 1])) end--;
+    if (a.length - end >= 2) {
+      for (var i = end - 1; i >= 0 && map[a[i]]; i--) { a[i] = map[a[i]]; fixed = true; }
+    }
+    for (var j = end; j < a.length; j++) if (map[a[j]]) { a[j] = map[a[j]]; fixed = true; }
+    for (var k = 1; k < a.length - 1; k++) if (map[a[k]] && /\d/.test(a[k - 1]) && /\d/.test(a[k + 1])) { a[k] = map[a[k]]; fixed = true; }
+    return { lot: a.join(''), fixed: fixed };
+  }
+
   /* parse OCR text printed beside the barcode: "(01)1498...(17)271031(10)AB12" or "使用期限 2027.10" */
   function ocrParse(text, nowY) {
     nowY = nowY || new Date().getFullYear();
@@ -418,11 +432,11 @@ var Core = (function () {
       while ((r3 = re3.exec(t))) { if (okY(+r3[1])) { out.expiry = r3[1] + '-' + String(+r3[2]).padStart(2, '0'); out.src = 'date'; break; } }
     }
     var l = t.match(/\(10\)([0-9A-Za-z\-]{2,20})/);
-    if (l) out.lot = l[1].replace(/\(.*/, '');
+    if (l) { var fx = fixLot(l[1].replace(/\(.*/, '')); out.lot = fx.lot; out.lotFixed = fx.fixed; }
     return out;
   }
 
-  return { ocrParse: ocrParse, checkDigit: checkDigit, validGtin: validGtin, toGtin14: toGtin14, key: key, parseGS1: parseGS1,
+  return { fixLot: fixLot, ocrParse: ocrParse, checkDigit: checkDigit, validGtin: validGtin, toGtin14: toGtin14, key: key, parseGS1: parseGS1,
     parseExpiry: parseExpiry, monthsLeft: monthsLeft, dispExp: dispExp, paginate: paginate, buildXlsx: buildXlsx };
 })();
 if (typeof module !== 'undefined') module.exports = Core;
@@ -724,6 +738,7 @@ function applyOcr(o, g) {
   if (o.lot && !$('fNote').value) $('fNote').value = 'Lot ' + o.lot;
   const ok = o.gtin && g && Core.key(o.gtin) === Core.key(g.gtin);
   $('srcHint').textContent = o.expiry ? '期限は印字から読取' + (o.src === 'ai17' ? '（(17)の6桁' + (ok ? '・コード一致' : '') + '）' : '（日付表記）') + '：念のため確認してな' : '';
+  if (o.lotFixed) $('srcHint').textContent += '／ロットはS→5・O→0などを自動補正したから見比べてな';
 }
 
 async function onPhoto(file) {
