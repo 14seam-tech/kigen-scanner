@@ -176,7 +176,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
     <label class="f c2"><span>棚番（様式のMAP列）</span><input id="fMap" type="text"><button type="button" class="chip" id="mapHint" style="display:none;margin-top:4px"></button></label>
     <label class="f c4 wide"><span>薬品名 <span id="fInfo" class="src"></span></span><input id="fName" type="text" placeholder="初回だけ入力（次回から自動）"></label>
     <label class="f c2"><span>期限（2709 や 27/9 でOK）</span><input id="fExp" type="text" inputmode="numeric" placeholder="YYMM"></label>
-    <div class="f c2"><span>数量</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div></div>
+    <div class="f c2"><span>数量（<span id="qUnit">錠・本などの数</span>）</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div></div>
     <label class="f c2"><span>区分</span><select id="fCat"><option value="3">3ヶ月以上（通常）</option><option value="2">2ヶ月以上（経腸栄養剤）</option><option value="1">1ヶ月以上（抗生剤・抗真菌剤・抗インフル・鎮咳去痰剤など）</option></select></label>
     <div class="hint c6 wide" id="expHint"></div><div class="src c6 wide" id="srcHint"></div>
     <label class="f c2"><span>単価（薬価）</span><input id="fPrice" type="number" inputmode="decimal" step="any"></label>
@@ -196,7 +196,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
   <div class="lh"><h2>登録リスト</h2>
     <div class="fa"><select id="mfil" aria-label="期限月で絞り込み"></select><select id="sort" aria-label="並び順"><option value="map">棚番順</option><option value="exp">期限順</option><option value="add">登録順</option></select></div>
   </div>
-  <table class="stack"><thead><tr><th>済</th><th>棚番</th><th>薬品名</th><th class="r">数量</th><th class="r">金額</th><th>期限</th><th>備考</th><th></th></tr></thead><tbody id="tb"></tbody></table>
+  <table class="stack"><thead><tr><th>処理済</th><th>棚番</th><th>薬品名</th><th class="r">数量</th><th class="r">金額</th><th>期限</th><th>備考</th><th></th></tr></thead><tbody id="tb"></tbody></table>
   <div class="empty" id="empty">まだ何も登録されてへん。
     <ol><li>棚番を入れる（例 A-3）</li><li>「かざして読み取る」で箱のバーコードと期限の印字を読み取る</li><li>期限を確認して「登録して次へ」</li></ol>
   </div>
@@ -491,7 +491,7 @@ function cleanItems(items) {
     id: /^[\w-]{1,40}$/.test(String(x.id)) ? String(x.id) : uid(), t: +x.t || Date.now(), done: !!x.done,
     map: String(x.map ?? '').slice(0, 40), name: String(x.name ?? '').slice(0, 200), expiry: /^\d{4}-\d{2}$/.test(x.expiry) ? x.expiry : '',
     note: String(x.note ?? '').slice(0, 200), qty: n(x.qty), price: n(x.price), amount: n(x.amount), cat: ['1', '2', '3'].includes(String(x.cat)) ? String(x.cat) : '3',
-    key: /^\d{12}$/.test(x.key) ? x.key : '', gtin: /^\d{14}$/.test(x.gtin) ? x.gtin : '' }));
+    unit: String(x.unit ?? '').slice(0, 20), factor: isFinite(+x.factor) && +x.factor > 0 ? +x.factor : 1, key: /^\d{12}$/.test(x.key) ? x.key : '', gtin: /^\d{14}$/.test(x.gtin) ? x.gtin : '' }));
 }
 function loadLocal() {
   const s = LS.get('kk_list'); if (s && Array.isArray(s.items)) { S = Object.assign(S, s); S.items = cleanItems(s.items); }
@@ -503,11 +503,11 @@ function loadLocal() {
 let HOT = {}, hotP = null;
 function base(key) {
   const b = BIG[key], h = HOT[key];
-  return { n: (b && b[0]) || (h && h[0]) || '', p: (b && b[1] !== '' && b[1] != null) ? b[1] : (h && h[1] !== '' ? h[1] : ''), c: h ? String(h[3]) : '3', u: h ? h[2] : '', pk: h ? h[4] : '' };
+  return { n: (b && b[0]) || (h && h[0]) || '', p: (b && b[1] !== '' && b[1] != null) ? b[1] : (h && h[1] !== '' ? h[1] : ''), c: h ? String(h[3]) : '3', u: h ? h[2] : '', pk: h ? h[4] : '', qu: h && h[5] ? h[5] : '', f: h && +h[6] ? +h[6] : 1, dq: h && h[7] !== '' && h[7] != null ? +h[7] : '' };
 }
 function lookup(key) {
   const l = M[key] || {}, d = base(key);
-  return { n: l.n || d.n, p: l.p ?? d.p, s: l.s || '', c: l.c || d.c, u: d.u, pk: d.pk, hot: !!HOT[key] };
+  return { n: l.n || d.n, p: l.p ?? d.p, s: l.s || '', c: l.c || d.c, u: d.u, pk: d.pk, qu: d.qu, f: d.f, dq: d.dq, hot: !!HOT[key] };
 }
 function loadHot() {
   if (hotP) return hotP;
@@ -570,16 +570,16 @@ function render() {
   const rows = sorted();
   $('tb').innerHTML = rows.map(it => {
     const j = judge(it.expiry, it.cat);
-    const amt = it.amount === '' || it.amount == null ? '' : yen(it.amount);
+    const amt = it.amount === '' || it.amount == null ? '' : (+it.amount).toLocaleString('ja-JP', { maximumFractionDigits: 2 });
     return `<tr data-id="${escH(it.id)}" class="${it.done ? 'done' : ''}">
-      <td class="c-ck"><input type="checkbox" class="ck" data-ck="${escH(it.id)}" ${it.done ? 'checked' : ''} aria-label="処理済み"></td>
+      <td class="c-ck"><input type="checkbox" class="ck" data-ck="${escH(it.id)}" ${it.done ? 'checked' : ''} aria-label="廃棄したらチェック"></td>
       <td class="c-hide num">${escH(it.map)}</td>
       <td class="c-nm"><span class="nm">${escH(it.name || '（品名未入力）')}</span></td>
-      <td class="r num c-hide">${escH(it.qty)}</td>
+      <td class="r num c-hide">${escH(it.qty)}<small>${escH((it.unit || '').replace(/\(.*/, ''))}</small></td>
       <td class="r num c-hide">${amt}</td>
       <td class="c-hide num" style="white-space:nowrap">${escH(Core.dispExp(it.expiry))}<span class="badge ${j.cls}">${j.txt}</span></td>
       <td class="c-hide">${escH(it.note)}</td>
-      <td class="c-meta num">${escH(it.map || '棚番なし')}・数量${escH(it.qty)}${amt ? '・' + amt + '円' : ''}${it.note ? '・' + escH(it.note) : ''}</td>
+      <td class="c-meta num">${escH(it.map || '棚番なし')}・数量${escH(it.qty)}${escH((it.unit || '').replace(/\(.*/, ''))}${amt ? '・' + amt + '円' : ''}${it.note ? '・' + escH(it.note) : ''}</td>
       <td class="c-meta num">${escH(Core.dispExp(it.expiry))} <span class="badge ${j.cls}">${j.txt}</span></td>
       <td class="c-ed"><button class="edit" data-ed="${escH(it.id)}" type="button">編集</button></td></tr>`;
   }).join('');
@@ -606,6 +606,7 @@ function openEditor(item, isNew) {
   $('fExp').value = Core.dispExp(editing.expiry); $('fQty').value = editing.qty;
   $('fPrice').value = editing.price; $('fAmt').value = editing.amount; $('fNote').value = editing.note;
   $('fCat').value = editing.cat || '3';
+  $('qUnit').textContent = editing.unit || '錠・本などの数';
   $('del').style.display = isNew ? 'none' : '';
   expHint(); checkDup();
   $('ed').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -621,8 +622,9 @@ function expHint() {
   h.textContent = Core.dispExp(e) + '・' + j.txt + (j.cls === 'bad' ? '（区分の基準より短い）' : j.cls === 'out' ? '（1年1ヶ月以上先＝記載不要かも）' : '');
   h.className = 'hint c6 wide' + (j.cls ? ' bad' : '');
 }
+function amountOf(q, f, p) { q = parseFloat(q); p = parseFloat(p); f = parseFloat(f) || 1; return isFinite(q) && isFinite(p) ? Math.round(q * f * p * 100) / 100 : ''; }
 function recalc() {
-  const q = parseFloat($('fQty').value), p = parseFloat($('fPrice').value);
+  const q = parseFloat($('fQty').value), p = parseFloat($('fPrice').value) * ((editing && +editing.factor) || 1);
   if (isFinite(q) && isFinite(p)) $('fAmt').value = Math.round(q * p * 100) / 100;
 }
 function checkDup() {
@@ -687,13 +689,14 @@ function best(hits) {
 }
 function fromCode(g, extra) {
   const key = Core.key(g.gtin), m = lookup(key);
-  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: S.shelf || m.s || '', mapHint: m.s && S.shelf && m.s !== S.shelf ? m.s : '', cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: 1 };
-  if (item.price !== '' && item.price != null) item.amount = Math.round(item.qty * item.price * 100) / 100;
+  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: S.shelf || m.s || '', mapHint: m.s && S.shelf && m.s !== S.shelf ? m.s : '', cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: m.dq !== '' && isFinite(m.dq) && m.dq > 0 ? m.dq : 1, unit: m.qu || '', factor: m.f || 1 };
+  if (item.price !== '' && item.price != null) item.amount = amountOf(item.qty, item.factor, item.price);
   Object.assign(item, extra || {});
   openEditor(item, true);
   $('srcHint').textContent = g.src || '';
   if (item.mapHint) { $('mapHint').textContent = '前回の棚番 ' + item.mapHint + ' を使う'; $('mapHint').dataset.v = item.mapHint; $('mapHint').style.display = ''; }
-  $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : ''].filter(Boolean).join('・') + '）' : '';
+  $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : '', m.f && m.f !== 1 ? '1' + (m.qu || '').replace(/\(.*/, '') + '＝' + m.f + '倍で計算' : ''].filter(Boolean).join('・') + '）' : '';
+  if (m.dq !== '' && m.dq > 0) $('srcHint').textContent = ($('srcHint').textContent ? $('srcHint').textContent + '／' : '') + '数量は未開封1箱分（' + m.dq + (m.qu || '') + '）で入れてる。開封済みなら直してな';
   return item;
 }
 
@@ -898,7 +901,7 @@ function shootNext() { if (liveSupported) startLive(); else { $('file').value = 
 function exportRows(months) {
   const cmp = (x, y) => (x.map || '').localeCompare(y.map || '', 'ja', { numeric: true }) || (x.name || '').localeCompare(y.name || '', 'ja');
   return S.items.filter(r => !months || months.includes(r.expiry || '')).slice().sort(cmp)
-    .map(r => ({ done: r.done, map: r.map, name: r.name, qty: r.qty, amount: r.amount, expiry: r.expiry, note: r.note }));
+    .map(r => ({ done: r.done, map: r.map, name: r.name, qty: r.unit && r.qty !== '' && !/^(錠|カプセル)$/.test(r.unit) ? r.qty + r.unit : r.qty, amount: r.amount, expiry: r.expiry, note: r.note }));
 }
 function openExport() {
   if (!S.items.length) { toast('まだ行がないで'); return; }
@@ -975,7 +978,7 @@ $('saveNext').onclick = () => { const k = editing && editing.key; if (commit()) 
 $('cancel').onclick = closeEditor;
 $('del').onclick = async () => { if (!editing) return; if (await ask('この行を削除する？', '削除する', true)) { S.items = S.items.filter(x => x.id !== editing.id); saveS(); closeEditor(); render(); } };
 $('dupMerge').onclick = () => { const id = $('dup').dataset.id, hit = S.items.find(x => x.id === id); if (!hit) return; collect();
-  hit.qty = (+hit.qty || 0) + (+editing.qty || 0); if (editing.note && !(hit.note || '').includes(editing.note)) hit.note = hit.note ? hit.note + ' / ' + editing.note : editing.note; if (hit.price !== '' && hit.price != null) hit.amount = Math.round(hit.qty * hit.price * 100) / 100; else if (editing.amount !== '') hit.amount = (+hit.amount || 0) + (+editing.amount || 0);
+  hit.qty = (+hit.qty || 0) + (+editing.qty || 0); if (editing.note && !(hit.note || '').includes(editing.note)) hit.note = hit.note ? hit.note + ' / ' + editing.note : editing.note; if (hit.price !== '' && hit.price != null) hit.amount = amountOf(hit.qty, hit.factor, hit.price); else if (editing.amount !== '') hit.amount = (+hit.amount || 0) + (+editing.amount || 0);
   saveS(); closeEditor(); render(); buzz(); toast('合算した（数量' + hit.qty + '）'); };
 $('tb').onclick = e => {
   const ck = e.target.closest('[data-ck]'); if (ck) { const it = S.items.find(x => x.id === ck.dataset.ck); if (it) { it.done = ck.checked; saveS(); render(); } return; }
