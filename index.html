@@ -68,6 +68,9 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid 
 .qty{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:4px}
 .qty button{min-height:44px;border:1.5px solid var(--line);border-radius:14px;background:var(--soft);font-size:22px;cursor:pointer}
 .qty input{text-align:center}
+.qunit{color:var(--acc);font-size:15px}
+.qwarn{display:none;margin-top:6px;padding:8px 10px;border-radius:14px;background:var(--warnsoft);color:var(--ink);font-size:14px}
+.qwarn.on{display:block}.qwarn button{margin-top:6px}
 .hint{font-size:13px;color:var(--mut);min-height:18px}
 .hint.bad{color:var(--warn);font-weight:700}
 .dup{display:none;margin-top:10px;padding:8px 12px;border-radius:14px;background:var(--warnsoft);font-size:14px;align-items:center;gap:10px;flex-wrap:wrap}
@@ -176,7 +179,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
     <label class="f c2"><span>棚番（様式のMAP列）</span><input id="fMap" type="text"><button type="button" class="chip" id="mapHint" style="display:none;margin-top:4px"></button></label>
     <label class="f c4 wide"><span>薬品名 <span id="fInfo" class="src"></span></span><input id="fName" type="text" placeholder="初回だけ入力（次回から自動）"></label>
     <label class="f c2"><span>期限（2709 や 27/9 でOK）</span><input id="fExp" type="text" inputmode="numeric" placeholder="YYMM"></label>
-    <div class="f c2"><span>数量（<span id="qUnit">錠・本などの数</span>）</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div><div class="chips" id="stepChips"></div></div>
+    <div class="f c2"><span>数量（単位：<b id="qUnit" class="qunit">錠・本などの数</b>）</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div><div class="chips" id="stepChips"></div><div class="qwarn" id="qWarn"></div></div>
     <label class="f c2"><span>区分</span><select id="fCat"><option value="3">3ヶ月以上（通常）</option><option value="2">2ヶ月以上（経腸栄養剤）</option><option value="1">1ヶ月以上（抗生剤・抗真菌剤・抗インフル・鎮咳去痰剤など）</option></select></label>
     <div class="hint c6 wide" id="expHint"></div><div class="src c6 wide" id="srcHint"></div>
     <label class="f c2"><span>単価（薬価）</span><input id="fPrice" type="number" inputmode="decimal" step="any"></label>
@@ -615,7 +618,7 @@ function openEditor(item, isNew) {
   if (!editing.name) setTimeout(() => $('fName').focus(), 50);
   else if (!editing.expiry) setTimeout(() => $('fExp').focus(), 50);
 }
-function closeEditor() { $('fInfo').textContent = ''; $('mapHint').style.display = 'none'; editing = null; $('ed').classList.remove('open'); }
+function closeEditor() { $('qWarn').classList.remove('on'); $('fInfo').textContent = ''; $('mapHint').style.display = 'none'; editing = null; $('ed').classList.remove('open'); }
 function expHint() {
   const e = Core.parseExpiry($('fExp').value), h = $('expHint');
   if (!$('fExp').value) { h.textContent = '期限が入ってへん'; h.className = 'hint bad c6 wide'; return; }
@@ -646,11 +649,26 @@ function collect() {
   e.note = $('fNote').value.trim(); e.cat = $('fCat').value;
   return e;
 }
+function qtyCheck() {
+  if (!editing || !editing.key) return '';
+  const lm = lookup(editing.key), u = editing.unit, q = parseFloat($('fQty').value);
+  if (!/^(mL|g)$/.test(u) || !lm.st || !isFinite(q) || q <= 0 || q >= lm.st) return '';
+  return { q, u, st: lm.st, sl: lm.sl };
+}
+function showQtyWarn() {
+  const w = qtyCheck(), el = $('qWarn');
+  if (!w) { el.classList.remove('on'); el.innerHTML = ''; return false; }
+  el.innerHTML = `数量は<b>${w.q}${w.u}</b>で登録するで。1${escH(w.sl)}（${w.st}${w.u}）より少ないけど合ってる？<br><button type="button" class="chip" id="qFix">${w.q}${escH(w.sl)}分（${Math.round(w.q * w.st * 100) / 100}${w.u}）に直す</button>`;
+  el.classList.add('on');
+  $('qFix').onclick = () => { $('fQty').value = Math.round(w.q * w.st * 100) / 100; recalc(); editing._qtyOk = false; showQtyWarn(); };
+  return true;
+}
 function commit() {
   if (!editing) return false;
+  if (showQtyWarn() && !editing._qtyOk) { editing._qtyOk = true; buzz('err'); toast('数量の単位を確認してな（そのままでええならもう一回登録）'); $('qWarn').scrollIntoView({ block: 'center' }); return false; }
   const e = collect();
   if (!e.name && !e.gtin) { toast('薬品名を入れてな'); $('fName').focus(); return false; }
-  const rest = Object.assign({}, e); delete rest._new; delete rest.mapHint;
+  const rest = Object.assign({}, e); delete rest._new; delete rest.mapHint; delete rest._qtyOk;
   const i = S.items.findIndex(x => x.id === e.id);
   if (i >= 0) S.items[i] = rest; else S.items.push(rest);
   if (e.key) { const d = base(e.key), r = { s: e.map, c: e.cat }; if (e.name && e.name !== d.n) r.n = e.name; if (e.price !== '' && e.price !== d.p) r.p = e.price; M[e.key] = r; saveM(); }
@@ -968,9 +986,9 @@ $('shelf').addEventListener('change', () => { S.shelf = $('shelf').value.trim();
 $('shelfChips').onclick = e => { const b = e.target.closest('[data-sh]'); if (!b) return; S.shelf = b.dataset.sh; if (editing) $('fMap').value = S.shelf; saveS(); render(); };
 $('manual').onclick = () => openEditor({ map: S.shelf }, true);
 $('qm').onclick = () => { $('fQty').value = Math.max(0, (+$('fQty').value || 0) - 1); recalc(); };
-$('stepChips').onclick = e => { const b = e.target.closest('[data-step]'); if (!b) return; $('fQty').value = Math.max(0, Math.round(((+$('fQty').value || 0) + +b.dataset.step) * 100) / 100); recalc(); };
+$('stepChips').onclick = e => { const b = e.target.closest('[data-step]'); if (!b) return; $('fQty').value = Math.max(0, Math.round(((+$('fQty').value || 0) + +b.dataset.step) * 100) / 100); recalc(); if (editing) editing._qtyOk = false; showQtyWarn(); };
 $('qp').onclick = () => { $('fQty').value = (+$('fQty').value || 0) + 1; recalc(); };
-$('fQty').oninput = recalc; $('fPrice').oninput = recalc;
+$('fQty').oninput = () => { recalc(); if (editing) editing._qtyOk = false; showQtyWarn(); }; $('fPrice').oninput = recalc;
 $('fExp').oninput = () => { expHint(); checkDup(); };
 $('fExp').onblur = () => { const e = Core.parseExpiry($('fExp').value); if (e) $('fExp').value = Core.dispExp(e); };
 $('fCat').onchange = expHint;
