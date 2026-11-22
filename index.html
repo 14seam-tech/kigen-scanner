@@ -34,7 +34,7 @@ h1::before{content:"";display:inline-block;width:.75em;height:.75em;border-radiu
 .tgt select{width:auto}
 .stats{display:flex;gap:18px;margin-top:10px;font-size:13px;color:var(--mut)}
 .stats{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px!important}.stats>div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 10px;font-size:12px}
-.stats b{display:block;font:900 24px/1.1 "Zen Maru Gothic",sans-serif;color:var(--acc);font-variant-numeric:tabular-nums}
+.stats b{display:block;font:900 clamp(15px,5.2vw,24px)/1.1 "Zen Maru Gothic",sans-serif;overflow-wrap:anywhere;color:var(--acc);font-variant-numeric:tabular-nums}
 .station{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;box-shadow:0 6px 14px -12px rgba(40,90,60,.35)}
 .srow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10px}
 .shoot{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border:0;border-radius:22px;background:var(--acc);color:var(--accink);font:900 19px/1.2 "Zen Maru Gothic",sans-serif;cursor:pointer;box-shadow:0 4px 0 color-mix(in srgb,var(--acc) 70%,#000 30%)}
@@ -51,6 +51,7 @@ input[type=text],input[type=number],input:not([type]),select{width:100%;min-heig
 input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
 .btn{min-height:44px;padding:8px 16px;border:1.5px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer;font-weight:700}
 .btn.pri{background:var(--accsoft);border-color:var(--acc);color:var(--ink)}
+.btn.warn{background:var(--warn);border-color:var(--warn);color:#fff}
 .btn.red{background:var(--acc);border-color:var(--acc);color:var(--accink)}
 .btn.ghost{border-color:var(--line);font-weight:400}
 .btn:disabled{opacity:.45}
@@ -138,10 +139,10 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
 
   </div>
   <div class="stats">
-    <div><b class="num" id="sN">0</b>品目</div>
+    <div><b class="num" id="sN">0</b>件</div>
     <div><b class="num" id="sA">0</b>円</div>
     <div><b class="num" id="sD">0</b>処理済み</div>
-    <div><b class="num" id="sW">0</b>要確認</div>
+    <div><b class="num" id="sW">0</b>基準外</div>
   </div>
 </header>
 </div>
@@ -150,17 +151,18 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
   <div class="srow">
     <button class="shoot" id="shoot" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h3l2-3h8l2 3h3v12H3z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span id="shootLbl">撮影して読み取る</span>
+      <span id="shootLbl">写真から読み取る</span>
     </button>
     <div class="wedge">
-      <input id="wedge" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="スキャナ入力 / JAN・GS1を手入力→Enter" aria-label="バーコード入力">
+      <input id="wedge" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="スキャナ入力／コード入力（GS1・JAN）→Enter" aria-label="バーコード入力">
     </div>
   </div>
   <input id="file" type="file" accept="image/*" capture="environment" hidden>
   <div class="sub">
+    <label><input type="checkbox" id="snd" checked> 音</label>
     <label id="aiWrap"><input type="checkbox" id="useAi" checked> AIで品名も読む</label>
     <label>棚番 <input id="shelf" type="text" style="width:120px;min-height:36px" placeholder="例 A-3"></label>
-    <button class="btn ghost" id="liveBtn" type="button" style="min-height:36px;display:none">写真から読む</button>
+    <button class="btn ghost" id="liveBtn" type="button" style="min-height:36px;display:none">写真から読み取る</button>
     <button class="btn ghost" id="manual" type="button" style="min-height:36px">手入力で追加</button>
   </div>
   <div class="chips" id="shelfChips"></div>
@@ -171,11 +173,11 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
 <section class="ed" id="ed" aria-label="入力">
   <h2><span id="edTitle">読み取り結果</span><span id="edCode" class="num"></span></h2>
   <div class="grid">
-    <label class="f c2"><span>棚番（MAP）</span><input id="fMap" type="text"></label>
+    <label class="f c2"><span>棚番（様式のMAP列）</span><input id="fMap" type="text"><button type="button" class="chip" id="mapHint" style="display:none;margin-top:4px"></button></label>
     <label class="f c4 wide"><span>薬品名 <span id="fInfo" class="src"></span></span><input id="fName" type="text" placeholder="初回だけ入力（次回から自動）"></label>
     <label class="f c2"><span>期限（2709 や 27/9 でOK）</span><input id="fExp" type="text" inputmode="numeric" placeholder="YYMM"></label>
     <div class="f c2"><span>数量</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div></div>
-    <label class="f c2"><span>区分</span><select id="fCat"><option value="3">通常（3ヶ月以上）</option><option value="2">経腸栄養剤（2ヶ月以上）</option><option value="1">抗生剤・鎮咳去痰剤など（1ヶ月以上）</option></select></label>
+    <label class="f c2"><span>区分</span><select id="fCat"><option value="3">3ヶ月以上（通常）</option><option value="2">2ヶ月以上（経腸栄養剤）</option><option value="1">1ヶ月以上（抗生剤・抗真菌剤・抗インフル・鎮咳去痰剤など）</option></select></label>
     <div class="hint c6 wide" id="expHint"></div><div class="src c6 wide" id="srcHint"></div>
     <label class="f c2"><span>単価（薬価）</span><input id="fPrice" type="number" inputmode="decimal" step="any"></label>
     <label class="f c2"><span>金額</span><input id="fAmt" type="number" inputmode="decimal" step="any"></label>
@@ -183,8 +185,8 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
   </div>
   <div class="dup" id="dup"><span id="dupTxt"></span><button class="btn" type="button" id="dupMerge">数量を合算</button></div>
   <div class="acts">
-    <button class="btn red grow" type="button" id="saveNext">確定して次へ</button>
-    <button class="btn pri" type="button" id="save">確定</button>
+    <button class="btn red grow" type="button" id="saveNext">登録して次へ</button>
+    <button class="btn pri" type="button" id="save">登録</button>
     <button class="btn" type="button" id="cancel">閉じる</button>
     <button class="btn ghost" type="button" id="del" style="display:none">この行を削除</button>
   </div>
@@ -196,7 +198,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
   </div>
   <table class="stack"><thead><tr><th>済</th><th>棚番</th><th>薬品名</th><th class="r">数量</th><th class="r">金額</th><th>期限</th><th>備考</th><th></th></tr></thead><tbody id="tb"></tbody></table>
   <div class="empty" id="empty">まだ何も登録されてへん。
-    <ol><li>棚番を入れる（例 A-3）</li><li>緑のボタンで箱のバーコードと期限の印字を読む</li><li>期限を確認して「確定して次へ」</li></ol>
+    <ol><li>棚番を入れる（例 A-3）</li><li>「かざして読み取る」で箱のバーコードと期限の印字を読み取る</li><li>期限を確認して「登録して次へ」</li></ol>
   </div>
 </section>
 
@@ -207,12 +209,12 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
     <button class="btn ghost" id="clearDone" type="button">処理済みを削除</button>
     <button class="btn ghost" id="clearAll" type="button">全削除</button>
   </div>
-  <p class="note" id="saveNote">入力内容は自動保存。</p>
+  <p class="note" id="saveNote">入力した内容は自動で保存されるで。</p>
   <div class="fa"><button class="btn ghost" id="bkOut" type="button">バックアップを保存</button><button class="btn ghost" id="bkIn" type="button">バックアップから復元</button><input id="bkFile" type="file" accept=".json,application/json" hidden></div>
   <details>
     <summary>医薬品マスタ</summary>
     <p class="note" id="hotInfo">内蔵マスタを読み込み中…</p>
-    <p class="note">内蔵マスタはMEDIS医薬品HOTコードマスター（販売包装単位コード付）と厚労省の薬価基準収載品目リストから作成。PTPシート（調剤包装）のコードは公的マスタに無いから、初回だけ手入力（以後は自動）。レセコン等からGTIN付きの品目一覧CSVを出せるなら、ここで追加取込するとPTPも埋まる。</p>
+    <p class="note">内蔵マスタはMEDIS医薬品HOTコードマスター（販売包装単位コード付）と厚労省の薬価基準収載品目リストから作成。PTPシート（調剤包装）のコードは公的マスタに無いから、初回だけ手入力（以後は自動）。レセコン等からGTIN付きの品目一覧CSVを出せるなら、ここで追加取り込みするとPTPも埋まる。</p>
     <div class="fa"><input id="mfile" type="file" accept=".csv,.tsv,.txt,text/csv" hidden><button class="btn" id="mbtn" type="button">CSVを選ぶ</button><button class="btn ghost" id="mclear" type="button">取り込んだマスタを消す</button></div>
     <p class="note" id="minfo"></p>
   </details>
@@ -224,7 +226,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
 <div class="modal" id="xmodal"><div><p style="margin:0 0 8px;font-weight:700">Excelに出す期限月</p><p class="note" style="margin:0 0 10px">期限月ごとに元の様式のシートを分けて出す（1枚25行、超えた分は同じ月の2枚目へ）。ブックごと印刷すれば月ごとに別ページになる。</p><div id="xList" style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px"></div><div class="fa"><button class="btn red" id="xGo" type="button">保存</button><button class="btn" id="xNo" type="button">やめる</button></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="jszip.min.js"></script>
 <script src="zxing-reader.js"></script>
 <script src="zxing-wasm.js"></script>
 <script>/* core logic: GS1 parsing, expiry parsing, xlsx export (shared by page and tests) */
@@ -314,13 +316,15 @@ var Core = (function () {
 
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\uFFFE\uFFFF]/g, '');
   }
   function cell(ref, style, v) {
     if (v === '' || v === null || v === undefined) return '<c r="' + ref + '" s="' + style + '"/>';
     if (typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '" s="' + style + '"><v>' + v + '</v></c>';
     return '<c r="' + ref + '" s="' + style + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
   }
+
+  function num(v) { if (v === '' || v == null) return ''; if (typeof v === 'number') return isFinite(v) ? v : ''; var t = String(v).replace(/,/g, '').trim(); return /^-?\d+(\.\d+)?$/.test(t) ? +t : String(v).trim(); }
 
   /* group rows by expiry month, 25 rows per sheet (the form's own size), one template sheet per page */
   function paginate(rows) {
@@ -355,7 +359,7 @@ var Core = (function () {
     var sheetsXml = '', defs = '', wbRels = '', ct = '';
     for (var p = 0; p < pages.length; p++) {
       var pg = pages[p], idx = p + 1;
-      var title = pg.year ? baseTitle.replace(/[　 ]*年[　 ]*月期限\s*$/, '　　　　' + pg.year + '年　' + pg.month + '月期限') : baseTitle;
+      var title = pg.year ? baseTitle.replace(/(\u3000*)年(\u3000*)月期限\s*$/, function (all, a, b) { return a.slice(0, Math.max(1, a.length - 2)) + pg.year + '年' + b.slice(0, Math.max(1, b.length - 1)) + pg.month + '月期限'; }) : baseTitle;
       var body = '';
       for (var i = 0; i < 25; i++) {
         var r = pg.rows[i] || {}, rn = 5 + i;
@@ -364,8 +368,8 @@ var Core = (function () {
           cell('B' + rn, 6, i + 1) +
           cell('C' + rn, 2, r.map || '') +
           cell('D' + rn, 2, r.name || '') +
-          cell('E' + rn, 2, r.qty === '' || r.qty == null ? '' : (isFinite(+r.qty) ? +r.qty : r.qty)) +
-          cell('F' + rn, 2, r.amount === '' || r.amount == null ? '' : +r.amount) +
+          cell('E' + rn, 2, num(r.qty)) +
+          cell('F' + rn, 2, num(r.amount)) +
           cell('G' + rn, 2, dispExp(r.expiry || '')) +
           cell('H' + rn, 2, r.note || '') + '</row>';
       }
@@ -416,7 +420,7 @@ var Core = (function () {
     var raw = String(text || '');
     var t = raw.replace(/[ \t]/g, '').replace(/[{\[]/g, '(').replace(/[}\]|]/g, ')');
     var dig = function (s) { return s.replace(/[Oo]/g, '0').replace(/[Il]/g, '1').replace(/S/g, '5').replace(/B/g, '8'); };
-    var okY = function (y) { return y >= nowY - 1 && y <= nowY + 7; };
+    var okY = function (y) { return y >= nowY && y <= nowY + 7; };
     var m = t.match(/\(?0?1\)?([0-9OoIlSB]{14})/);
     if (m) { var g = dig(m[1]); if (validGtin(g)) out.gtin = g; }
     var re = /\(17\)([0-9OoIlSB]{6})/g, r;
@@ -430,10 +434,11 @@ var Core = (function () {
       if (r2) { var e2 = yymmdd(dig(r2[1])); if (e2 && okY(+e2.slice(0, 4))) { out.expiry = e2; out.src = 'ai17'; } }
     }
     if (!out.expiry) {
-      var re3 = /(20\d{2})[.\-\/年,](0?[1-9]|1[0-2])(?!\d)/g, r3;
-      while ((r3 = re3.exec(t))) { if (okY(+r3[1])) { out.expiry = r3[1] + '-' + String(+r3[2]).padStart(2, '0'); out.src = 'date'; break; } }
+      var re3 = /(20\d{2})[.\-\/年,](0?[1-9]|1[0-2])(?!\d)/g, r3, bestD = '';
+      while ((r3 = re3.exec(t))) { if (okY(+r3[1])) { var d = r3[1] + '-' + String(+r3[2]).padStart(2, '0'); if (d > bestD) bestD = d; } }
+      if (bestD) { out.expiry = bestD; out.src = 'date'; }
     }
-    var l = t.match(/\(10\)([0-9A-Za-z\-]{2,20})/);
+    var l = raw.replace(/[{\[]/g, '(').replace(/[}\]|]/g, ')').match(/\(\s*1\s*[0Oo]\s*\)\s*([0-9A-Za-z\-]{2,20})/);
     if (l) { var fx = fixLot(l[1].replace(/\(.*/, '')); out.lot = fx.lot; out.lotFixed = fx.fixed; }
     return out;
   }
@@ -447,7 +452,7 @@ if (typeof module !== 'undefined') module.exports = Core;
 {
 const $ = id => document.getElementById(id);
 const TPL = "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";
-const now = new Date(), NY = now.getFullYear(), NM = now.getMonth() + 1;
+let NY, NM; const tickNow = () => { const d = new Date(); NY = d.getFullYear(); NM = d.getMonth() + 1; }; tickNow(); setInterval(tickNow, 60000);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const yen = n => Math.round(n || 0).toLocaleString('ja-JP');
 const escH = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -463,7 +468,7 @@ const LS = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e
              set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } } };
 const writers = {};
 function persist(name, value) {
-  LS.set('kk_' + name, value);
+  if (!LS.set('kk_' + name, value) && !(db && userId)) { $('saveNote').textContent = 'この端末に保存できてへん（容量不足かも）。「バックアップを保存」で退避してな。'; $('saveNote').style.color = 'var(--warn)'; toast('保存に失敗した…バックアップを保存してな'); }
   if (!db || !userId) return;
   const w = writers[name] || (writers[name] = { t: 0, busy: false, pending: null });
   w.pending = value; clearTimeout(w.t);
@@ -480,8 +485,16 @@ function persist(name, value) {
 const saveS = () => persist('list', S);
 const saveM = () => persist('master', M);
 
+function cleanItems(items) {
+  const n = v => { if (v === '' || v == null) return ''; const x = parseFloat(String(v).replace(/,/g, '')); return isFinite(x) ? x : ''; };
+  return (Array.isArray(items) ? items : []).filter(x => x && typeof x === 'object').map(x => ({
+    id: /^[\w-]{1,40}$/.test(String(x.id)) ? String(x.id) : uid(), t: +x.t || Date.now(), done: !!x.done,
+    map: String(x.map ?? '').slice(0, 40), name: String(x.name ?? '').slice(0, 200), expiry: /^\d{4}-\d{2}$/.test(x.expiry) ? x.expiry : '',
+    note: String(x.note ?? '').slice(0, 200), qty: n(x.qty), price: n(x.price), amount: n(x.amount), cat: ['1', '2', '3'].includes(String(x.cat)) ? String(x.cat) : '3',
+    key: /^\d{12}$/.test(x.key) ? x.key : '', gtin: /^\d{14}$/.test(x.gtin) ? x.gtin : '' }));
+}
 function loadLocal() {
-  const s = LS.get('kk_list'); if (s && Array.isArray(s.items)) S = Object.assign(S, s);
+  const s = LS.get('kk_list'); if (s && Array.isArray(s.items)) { S = Object.assign(S, s); S.items = cleanItems(s.items); }
   M = LS.get('kk_master') || {};
   BIG = LS.get('kk_big') || {};
 }
@@ -498,20 +511,33 @@ function lookup(key) {
 }
 function loadHot() {
   if (hotP) return hotP;
-  hotP = fetch('master.json').then(r => { if (!r.ok) throw 0; return r.json(); }).then(j => { HOT = j.m || {}; $('hotInfo').textContent = '医薬品マスタ内蔵：' + Object.keys(HOT).length.toLocaleString() + '品目（' + j.v + '）。箱のバーコードなら品名・薬価が自動で入る。'; return true; })
-    .catch(() => { $('hotInfo').textContent = '内蔵の医薬品マスタを読み込めへんかった（品名は覚えた分と取込マスタだけ）。'; return false; });
+  hotP = fetch('master.json').then(r => { if (!r.ok) throw 0; return r.json(); }).then(j => { HOT = j.m || {}; $('hotInfo').textContent = '医薬品マスタ内蔵：' + Object.keys(HOT).length.toLocaleString() + '品目（' + j.v + '）。箱のバーコードなら品名・薬価が自動で入る。'; if (editing && editing.key) { const m = lookup(editing.key); if (!$('fName').value && m.n) $('fName').value = m.n; if ($('fPrice').value === '' && m.p !== '') { $('fPrice').value = m.p; recalc(); } } return true; })
+    .catch(() => { $('hotInfo').textContent = '内蔵の医薬品マスタを読み込めへんかった（品名は覚えた分と取り込みマスタだけ）。'; return false; });
   return hotP;
 }
-const hotWait = () => Promise.race([loadHot(), new Promise(r => setTimeout(r, 4000))]);
+const hotWait = () => Promise.race([loadHot(), new Promise(r => setTimeout(r, 1500))]);
 
 /* ---------- UI helpers ---------- */
 let tt;
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 2600); }
-function status(t, err) { const el = $('status'); el.textContent = t || ''; el.className = 'status' + (err ? ' err' : ''); }
-function ask(t) { return new Promise(r => { $('mTxt').textContent = t; $('modal').classList.add('on');
+function status(t, err) { if (err) buzz('err'); const el = $('status'); el.textContent = t || ''; el.className = 'status' + (err ? ' err' : ''); }
+function ask(t, ok, danger) { return new Promise(r => { $('mTxt').textContent = t; $('mOk').textContent = ok || 'OK'; $('mOk').className = 'btn ' + (danger ? 'warn' : 'red'); $('modal').classList.add('on');
   $('mOk').onclick = () => { $('modal').classList.remove('on'); r(true); };
   $('mNo').onclick = () => { $('modal').classList.remove('on'); r(false); }; }); }
-function buzz() { try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} }
+let actx = null;
+function beep(f, ms, n) {
+  try {
+    if (localStorage.getItem('kk_mute') === '1') return;
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    for (let i = 0; i < (n || 1); i++) {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * (ms + 60) / 1000;
+      o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + ms / 1000 + 0.02);
+    }
+  } catch (e) {}
+}
+function buzz(kind) { try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} if (kind === 'ok') beep(1320, 90, 2); else if (kind === 'err') beep(330, 220, 1); else beep(990, 70, 1); }
 
 function judge(exp, cat) {
   const ml = Core.monthsLeft(exp, NY, NM);
@@ -524,12 +550,12 @@ function judge(exp, cat) {
 
 /* ---------- render ---------- */
 let mFilter = '';
-const ymLabel = k => k ? +k.slice(0, 4) + '年' + +k.slice(5, 7) + '月' : '期限未入力';
+const ymLabel = k => k ? +k.slice(0, 4) + '年' + +k.slice(5, 7) + '月期限' : '期限未入力';
 function monthCounts() { const c = {}; S.items.forEach(r => { const k = r.expiry || ''; c[k] = (c[k] || 0) + 1; }); return Object.keys(c).sort((a, b) => (a || '9999') < (b || '9999') ? -1 : 1).map(k => [k, c[k]]); }
 function renderMonths() {
   const mc = monthCounts();
   if (mFilter && !mc.some(x => (x[0] || '_') === mFilter)) mFilter = '';
-  $('mfil').innerHTML = `<option value="">全部の期限月（${S.items.length}）</option>` + mc.map(([k, n]) => `<option value="${k || '_'}" ${(k || '_') === (mFilter || '') ? 'selected' : ''}>${ymLabel(k)}期限（${n}）</option>`).join('');
+  $('mfil').innerHTML = `<option value="">全部の期限月（${S.items.length}）</option>` + mc.map(([k, n]) => `<option value="${escH(k || '_')}" ${(k || '_') === (mFilter || '') ? 'selected' : ''}>${ymLabel(k)}（${n}）</option>`).join('');
   $('mfil').value = mFilter === '' ? '' : (mFilter || '_');
 }
 function sorted(all) {
@@ -545,17 +571,17 @@ function render() {
   $('tb').innerHTML = rows.map(it => {
     const j = judge(it.expiry, it.cat);
     const amt = it.amount === '' || it.amount == null ? '' : yen(it.amount);
-    return `<tr data-id="${it.id}" class="${it.done ? 'done' : ''}">
-      <td class="c-ck"><input type="checkbox" class="ck" data-ck="${it.id}" ${it.done ? 'checked' : ''} aria-label="処理済み"></td>
+    return `<tr data-id="${escH(it.id)}" class="${it.done ? 'done' : ''}">
+      <td class="c-ck"><input type="checkbox" class="ck" data-ck="${escH(it.id)}" ${it.done ? 'checked' : ''} aria-label="処理済み"></td>
       <td class="c-hide num">${escH(it.map)}</td>
       <td class="c-nm"><span class="nm">${escH(it.name || '（品名未入力）')}</span></td>
       <td class="r num c-hide">${escH(it.qty)}</td>
       <td class="r num c-hide">${amt}</td>
-      <td class="c-hide num" style="white-space:nowrap">${Core.dispExp(it.expiry)}<span class="badge ${j.cls}">${j.txt}</span></td>
+      <td class="c-hide num" style="white-space:nowrap">${escH(Core.dispExp(it.expiry))}<span class="badge ${j.cls}">${j.txt}</span></td>
       <td class="c-hide">${escH(it.note)}</td>
       <td class="c-meta num">${escH(it.map || '棚番なし')}・数量${escH(it.qty)}${amt ? '・' + amt + '円' : ''}${it.note ? '・' + escH(it.note) : ''}</td>
-      <td class="c-meta num">${Core.dispExp(it.expiry)} <span class="badge ${j.cls}">${j.txt}</span></td>
-      <td class="c-ed"><button class="edit" data-ed="${it.id}" type="button">編集</button></td></tr>`;
+      <td class="c-meta num">${escH(Core.dispExp(it.expiry))} <span class="badge ${j.cls}">${j.txt}</span></td>
+      <td class="c-ed"><button class="edit" data-ed="${escH(it.id)}" type="button">編集</button></td></tr>`;
   }).join('');
   $('empty').style.display = S.items.length ? 'none' : '';
   const all = S.items;
@@ -586,10 +612,10 @@ function openEditor(item, isNew) {
   if (!editing.name) setTimeout(() => $('fName').focus(), 50);
   else if (!editing.expiry) setTimeout(() => $('fExp').focus(), 50);
 }
-function closeEditor() { $('fInfo').textContent = ''; editing = null; $('ed').classList.remove('open'); }
+function closeEditor() { $('fInfo').textContent = ''; $('mapHint').style.display = 'none'; editing = null; $('ed').classList.remove('open'); }
 function expHint() {
   const e = Core.parseExpiry($('fExp').value), h = $('expHint');
-  if (!$('fExp').value) { h.textContent = '期限が未入力'; h.className = 'hint bad c6 wide'; return; }
+  if (!$('fExp').value) { h.textContent = '期限が入ってへん'; h.className = 'hint bad c6 wide'; return; }
   if (!e) { h.textContent = '期限が読めへん（例: 2709 → 2027/09）'; h.className = 'hint bad c6 wide'; return; }
   const j = judge(e, $('fCat').value);
   h.textContent = Core.dispExp(e) + '・' + j.txt + (j.cls === 'bad' ? '（区分の基準より短い）' : j.cls === 'out' ? '（1年1ヶ月以上先＝記載不要かも）' : '');
@@ -620,12 +646,12 @@ function commit() {
   if (!editing) return false;
   const e = collect();
   if (!e.name && !e.gtin) { toast('薬品名を入れてな'); $('fName').focus(); return false; }
-  const rest = Object.assign({}, e); delete rest._new;
+  const rest = Object.assign({}, e); delete rest._new; delete rest.mapHint;
   const i = S.items.findIndex(x => x.id === e.id);
   if (i >= 0) S.items[i] = rest; else S.items.push(rest);
   if (e.key) { const d = base(e.key), r = { s: e.map, c: e.cat }; if (e.name && e.name !== d.n) r.n = e.name; if (e.price !== '' && e.price !== d.p) r.p = e.price; M[e.key] = r; saveM(); }
-  if (e.map) { S.shelf = e.map; S.shelves = [e.map].concat((S.shelves || []).filter(x => x !== e.map)).slice(0, 10); }
-  saveS(); closeEditor(); render(); buzz();
+  if (e.map) { if (!S.shelf) S.shelf = e.map; S.shelves = [e.map].concat((S.shelves || []).filter(x => x !== e.map)).slice(0, 10); }
+  saveS(); closeEditor(); render(); buzz('ok');
   toast('登録した：' + (e.name || e.gtin));
   return true;
 }
@@ -636,7 +662,7 @@ let zxReady = null;
 function zx() {
   if (zxReady) return zxReady;
   zxReady = (async () => {
-    if (!window.ZXingWASM || !window.ZXW_B64) throw new Error('読取エンジンが読み込めてへん');
+    if (!window.ZXingWASM || !window.ZXW_B64) throw new Error('読み取りエンジンが読み込めてへん');
     const bin = Uint8Array.from(atob(window.ZXW_B64), c => c.charCodeAt(0));
     await ZXingWASM.prepareZXingModule({ overrides: { wasmBinary: bin }, fireImmediately: true });
     return ZXingWASM;
@@ -661,11 +687,12 @@ function best(hits) {
 }
 function fromCode(g, extra) {
   const key = Core.key(g.gtin), m = lookup(key);
-  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: m.s || S.shelf || '', cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: 1 };
+  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: S.shelf || m.s || '', mapHint: m.s && S.shelf && m.s !== S.shelf ? m.s : '', cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: 1 };
   if (item.price !== '' && item.price != null) item.amount = Math.round(item.qty * item.price * 100) / 100;
   Object.assign(item, extra || {});
   openEditor(item, true);
   $('srcHint').textContent = g.src || '';
+  if (item.mapHint) { $('mapHint').textContent = '前回の棚番 ' + item.mapHint + ' を使う'; $('mapHint').dataset.v = item.mapHint; $('mapHint').style.display = ''; }
   $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : ''].filter(Boolean).join('・') + '）' : '';
   return item;
 }
@@ -739,7 +766,7 @@ function applyOcr(o, g) {
   if (o.expiry && !$('fExp').value) { $('fExp').value = Core.dispExp(o.expiry); expHint(); checkDup(); }
   if (o.lot && !$('fNote').value) $('fNote').value = 'Lot ' + o.lot;
   const ok = o.gtin && g && Core.key(o.gtin) === Core.key(g.gtin);
-  $('srcHint').textContent = o.expiry ? '期限は印字から読取' + (o.src === 'ai17' ? '（(17)の6桁' + (ok ? '・コード一致' : '') + '）' : '（日付表記）') + '：念のため確認してな' : '';
+  $('srcHint').textContent = o.expiry ? '期限は印字から読み取り' + (o.src === 'ai17' ? '（(17)の6桁' + (ok ? '・コード一致' : '') + '）' : '（日付表記）') + '：念のため確認してな' : '';
   if (o.lotFixed) $('srcHint').textContent += '／ロットはS→5・O→0などを自動補正したから見比べてな';
 }
 
@@ -754,9 +781,9 @@ async function onPhoto(file) {
       const hits = await decodeImageData(c.getContext('2d').getImageData(0, 0, c.width, c.height));
       g = best(hits); if (g) { full = c; break; }
     }
-  } catch (e) { status(e.message || '読取エンジンのエラー', true); }
+  } catch (e) { status(e.message || '読み取りエンジンのエラー', true); }
   const useAi = $('useAi').checked && smp;
-  if (g) { buzz(); status('バーコード読取OK' + (g.expiry ? '（期限も取得）' : '・期限の印字を読取中…')); }
+  if (g) { buzz(); status('バーコード読み取りOK' + (g.expiry ? '（期限も取得）' : '・期限の印字を読み取り中…')); }
   else status('バーコードが見つからんかった' + (useAi ? ' → AIで文字から読む' : '。もう少し寄って撮るか、手入力してな'), !useAi);
   await hotWait();
   const item = g ? fromCode(g) : fromCode({ gtin: '' });
@@ -772,7 +799,7 @@ async function onPhoto(file) {
 
 async function aiRead(im, item) {
   const myId = item.id || (editing && editing.id); const tag = document.createElement('span');
-  tag.className = 'ai'; tag.textContent = 'AI読取中…'; $('edTitle').appendChild(tag);
+  tag.className = 'ai'; tag.textContent = 'AI読み取り中…'; $('edTitle').appendChild(tag);
   try {
     const c = toCanvas(im, 1600);
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
@@ -791,7 +818,7 @@ async function aiRead(im, item) {
     if (!$('fNote').value && j.lot) { $('fNote').value = 'Lot ' + j.lot; got.push('ロット'); }
     tag.textContent = got.length ? 'AI: ' + got.join('・') + 'を入力（要確認）' : 'AI: 追加情報なし';
   } catch (e) {
-    tag.textContent = e && e.code === 'not_granted' ? 'AI読取は未許可' : 'AI読取できず';
+    tag.textContent = e && e.code === 'not_granted' ? 'AI読み取りは未許可' : 'AI読み取りできず';
     if (e && e.code === 'not_granted') { smp = null; $('useAi').checked = false; $('useAi').disabled = true; }
   }
 }
@@ -800,19 +827,19 @@ async function onWedge(v) {
   v = v.trim(); if (!v) return;
   const g = Core.parseGS1(v);
   if (!g.gtin || !Core.validGtin(g.gtin)) { status('コードとして読めへん：' + v, true); return; }
-  status('読取OK' + (g.expiry ? '（期限も取得）' : '')); buzz();
+  status('読み取りOK' + (g.expiry ? '（期限も取得）' : '')); buzz();
   await hotWait(); fromCode(g);
 }
 
 /* ---------- live camera: hold the box up, no shutter ---------- */
-let stream = null, liveOn = false, liveBusy = false, lastDone = { key: '', t: 0 };
+let stream = null, liveOn = false, liveBusy = false, lastDone = { key: '', away: 0 };
 const liveMsg = t => { $('liveMsg').textContent = t; };
 async function startLive() {
   if (liveOn) return;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
   } catch (e) {
-    liveSupported = false; setMainMode(); toast('カメラが使えへん。写真で読み取るで');
+    liveSupported = false; setMainMode(); toast('カメラが使えへん。写真から読み取るで');
     $('file').value = ''; $('file').click(); return;
   }
   try { const tr = stream.getVideoTracks()[0], cap = tr.getCapabilities ? tr.getCapabilities() : {}; if (cap.focusMode && cap.focusMode.includes('continuous')) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
@@ -822,7 +849,7 @@ async function startLive() {
   ocrWorker().catch(() => {});
   const full = document.createElement('canvas'), fctx = full.getContext('2d', { willReadFrequently: true });
   const small = document.createElement('canvas'), sctx = small.getContext('2d', { willReadFrequently: true });
-  let ocrTries = 0, pending = null, t0 = 0;
+  let ocrTries = 0, pending = null, t0 = 0, lastHit = 0;
   const tick = async () => {
     if (!liveOn) return;
     if (v.videoWidth && !liveBusy) {
@@ -832,7 +859,11 @@ async function startLive() {
         const sc = Math.min(1, 1280 / Math.max(full.width, full.height));
         small.width = Math.round(full.width * sc); small.height = Math.round(full.height * sc); sctx.drawImage(full, 0, 0, small.width, small.height);
         const g = best(await decodeImageData(sctx.getImageData(0, 0, small.width, small.height), true));
-        if (g && !pending && lastDone.key === Core.key(g.gtin) && Date.now() - lastDone.t < 3500) { liveMsg('今の箱は登録済み・次の箱をかざしてな'); }
+        const gk = g ? Core.key(g.gtin) : '';
+        if (lastDone.key) { if (gk === lastDone.key) lastDone.away = 0; else if (!lastDone.away) lastDone.away = Date.now(); else if (Date.now() - lastDone.away > 700) lastDone.key = ''; }
+        if (g) lastHit = Date.now();
+        if (pending && !g && Date.now() - lastHit > 1500) { pending = null; $('aim').classList.remove('hit'); liveMsg('箱のバーコードと期限の印字を枠に入れてな'); }
+        if (g && !pending && lastDone.key && gk === lastDone.key) { liveMsg('今の箱は登録済み・いったん外して次の箱をかざしてな'); }
         else if (g && (!pending || Core.key(g.gtin) === Core.key(pending.gtin))) {
           if (!pending) { pending = g; t0 = Date.now(); ocrTries = 0; buzz(); $('aim').classList.add('hit'); }
           if (g.expiry) return finishLive(g, null);
@@ -858,7 +889,7 @@ async function finishLive(g, o) {
 function stopLive() { liveOn = false; liveBusy = false; $('aim').classList.remove('hit'); $('live').classList.remove('on'); if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; }
 let liveSupported = !EMBED && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 function setMainMode() {
-  $('shootLbl').textContent = liveSupported ? 'かざして読み取る' : '撮影して読み取る';
+  $('shootLbl').textContent = liveSupported ? 'かざして読み取る' : '写真から読み取る';
   $('liveBtn').style.display = liveSupported ? '' : 'none';
 }
 function shootNext() { if (liveSupported) startLive(); else { $('file').value = ''; $('file').click(); } }
@@ -872,7 +903,7 @@ function exportRows(months) {
 function openExport() {
   if (!S.items.length) { toast('まだ行がないで'); return; }
   const mc = monthCounts();
-  $('xList').innerHTML = mc.map(([k, n]) => `<label class="xl"><input type="checkbox" value="${k}" ${!mFilter || (k || '_') === mFilter ? 'checked' : ''}> ${ymLabel(k)}期限 <span class="num">${n}行・${Math.ceil(n / 25)}枚</span></label>`).join('');
+  $('xList').innerHTML = mc.map(([k, n]) => `<label class="xl"><input type="checkbox" value="${escH(k)}" ${!mFilter || (k || '_') === mFilter ? 'checked' : ''}> ${ymLabel(k)} <span class="num">${n}行・${Math.ceil(n / 25)}枚</span></label>`).join('');
   $('xmodal').classList.add('on');
 }
 async function saveXlsx() {
@@ -910,8 +941,7 @@ function parseCSV(text) {
 }
 async function importMaster(file) {
   const buf = await file.arrayBuffer();
-  let text = new TextDecoder('utf-8').decode(buf);
-  if (text.split(String.fromCharCode(0xFFFD)).length > 5) { try { text = new TextDecoder('shift_jis').decode(buf); } catch (e) {} }
+  let text; try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { try { text = new TextDecoder('shift_jis').decode(buf); } catch (e2) { text = new TextDecoder('utf-8').decode(buf); } }
   const rows = parseCSV(text).filter(r => r.length > 1); if (rows.length < 2) { $('minfo').textContent = '行が読めへんかった'; return; }
   const head = rows[0], body = rows.slice(1, 400), nc = Math.max(...rows.slice(0, 50).map(r => r.length));
   const score = (fn) => { let b = -1, bi = -1; for (let c = 0; c < nc; c++) { const s = fn(c); if (s > b) { b = s; bi = c; } } return [bi, b]; };
@@ -920,7 +950,7 @@ async function importMaster(file) {
   const [nameCol] = score(c => /品名|名称|販売名|商品名|医薬品名|name/i.test(head[c] || '') ? 1e6 : (codeCols.some(x => x[0] === c) ? -1 : body.reduce((s, r) => s + ((r[c] || '').match(/[぀-ヿ一-鿿]/g) || []).length, 0)));
   const [priceCol, ps] = score(c => /薬価|単価|価格|price/i.test(head[c] || '') ? 1e6 : -1);
   const out = {}; let n = 0;
-  for (const r of rows) for (const [c] of codeCols) { const g = Core.toGtin14(r[c]); if (g && Core.validGtin(g) && r[nameCol]) { const k = Core.key(g); if (!out[k]) { out[k] = [r[nameCol].trim(), ps > 0 && isFinite(parseFloat(r[priceCol])) ? parseFloat(r[priceCol]) : '']; n++; } } }
+  for (const r of rows) for (const [c] of codeCols) { const g = Core.toGtin14(r[c]); if (g && Core.validGtin(g) && r[nameCol]) { const k = Core.key(g); if (!out[k]) { out[k] = [r[nameCol].trim(), ps > 0 && isFinite(parseFloat(String(r[priceCol]).replace(/,/g, ''))) ? parseFloat(String(r[priceCol]).replace(/,/g, '')) : '']; n++; } } }
   BIG = out; const ok = LS.set('kk_big', BIG);
   $('minfo').textContent = n + '品目を取り込んだ（コード列: ' + codeCols.map(x => head[x[0]] || (x[0] + 1) + '列目').join('・') + ' / 品名列: ' + (head[nameCol] || nameCol + 1 + '列目') + (ps > 0 ? ' / 薬価列: ' + head[priceCol] : ' / 薬価列なし') + '）' + (ok ? '。この端末に保存済み。' : '。容量オーバーでこの端末に保存できへんかった（開いている間だけ有効）。');
 }
@@ -928,7 +958,7 @@ async function importMaster(file) {
 /* ---------- events ---------- */
 $('shoot').onclick = shootNext;
 $('file').onchange = () => { const f = $('file').files[0]; if (f) onPhoto(f); };
-$('wedge').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); onWedge($('wedge').value); $('wedge').value = ''; } });
+$('wedge').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); onWedge($('wedge').value); $('wedge').value = ''; } });
 $('shelf').addEventListener('change', () => { S.shelf = $('shelf').value.trim(); saveS(); render(); });
 $('shelfChips').onclick = e => { const b = e.target.closest('[data-sh]'); if (!b) return; S.shelf = b.dataset.sh; if (editing) $('fMap').value = S.shelf; saveS(); render(); };
 $('manual').onclick = () => openEditor({ map: S.shelf }, true);
@@ -938,13 +968,14 @@ $('fQty').oninput = recalc; $('fPrice').oninput = recalc;
 $('fExp').oninput = () => { expHint(); checkDup(); };
 $('fExp').onblur = () => { const e = Core.parseExpiry($('fExp').value); if (e) $('fExp').value = Core.dispExp(e); };
 $('fCat').onchange = expHint;
-$('ed').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); commit(); } });
+$('ed').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && e.target.tagName === 'INPUT') { e.preventDefault(); commit(); } });
 $('save').onclick = commit;
-$('saveNext').onclick = () => { const k = editing && editing.key; if (commit()) { lastDone = { key: k, t: Date.now() }; shootNext(); } };
+$('mapHint').onclick = () => { $('fMap').value = $('mapHint').dataset.v; $('mapHint').style.display = 'none'; };
+$('saveNext').onclick = () => { const k = editing && editing.key; if (commit()) { lastDone = { key: k || '', away: 0 }; shootNext(); } };
 $('cancel').onclick = closeEditor;
-$('del').onclick = async () => { if (!editing) return; if (await ask('この行を削除する？')) { S.items = S.items.filter(x => x.id !== editing.id); saveS(); closeEditor(); render(); } };
+$('del').onclick = async () => { if (!editing) return; if (await ask('この行を削除する？', '削除する', true)) { S.items = S.items.filter(x => x.id !== editing.id); saveS(); closeEditor(); render(); } };
 $('dupMerge').onclick = () => { const id = $('dup').dataset.id, hit = S.items.find(x => x.id === id); if (!hit) return; collect();
-  hit.qty = (+hit.qty || 0) + (+editing.qty || 0); if (hit.price !== '' && hit.price != null) hit.amount = Math.round(hit.qty * hit.price * 100) / 100; else if (editing.amount !== '') hit.amount = (+hit.amount || 0) + (+editing.amount || 0);
+  hit.qty = (+hit.qty || 0) + (+editing.qty || 0); if (editing.note && !(hit.note || '').includes(editing.note)) hit.note = hit.note ? hit.note + ' / ' + editing.note : editing.note; if (hit.price !== '' && hit.price != null) hit.amount = Math.round(hit.qty * hit.price * 100) / 100; else if (editing.amount !== '') hit.amount = (+hit.amount || 0) + (+editing.amount || 0);
   saveS(); closeEditor(); render(); buzz(); toast('合算した（数量' + hit.qty + '）'); };
 $('tb').onclick = e => {
   const ck = e.target.closest('[data-ck]'); if (ck) { const it = S.items.find(x => x.id === ck.dataset.ck); if (it) { it.done = ck.checked; saveS(); render(); } return; }
@@ -954,19 +985,21 @@ $('sort').onchange = () => { S.sort = $('sort').value; saveS(); render(); };
 $('xlsx').onclick = openExport; $('xGo').onclick = saveXlsx; $('xNo').onclick = () => $('xmodal').classList.remove('on');
 $('mfil').onchange = () => { mFilter = $('mfil').value; render(); };
 $('copy').onclick = copyTable;
-$('clearDone').onclick = async () => { const n = S.items.filter(x => x.done).length; if (!n) { toast('処理済みの行はないで'); return; } if (await ask('処理済み' + n + '行を削除する？')) { S.items = S.items.filter(x => !x.done); saveS(); render(); } };
-$('clearAll').onclick = async () => { if (!S.items.length) return; if (await ask('登録リストを全部削除する？（覚えた品名・単価・棚番は残る）')) { S.items = []; saveS(); render(); } };
+$('clearDone').onclick = async () => { const n = S.items.filter(x => x.done).length; if (!n) { toast('処理済みの行はないで'); return; } if (await ask('処理済み' + n + '行を削除する？', '削除する', true)) { S.items = S.items.filter(x => !x.done); saveS(); render(); } };
+$('clearAll').onclick = async () => { if (!S.items.length) return; if (await ask('登録リスト' + S.items.length + '行を全部削除する？（覚えた品名・単価・棚番は残る）', '全部削除する', true)) { S.items = []; saveS(); render(); } };
 $('mbtn').onclick = () => { $('mfile').value = ''; $('mfile').click(); };
-$('mfile').onchange = () => { const f = $('mfile').files[0]; if (f) importMaster(f).catch(() => { $('minfo').textContent = '読み込みに失敗した'; }); };
-$('mclear').onclick = async () => { if (await ask('取り込んだマスタを消す？（自分で確定した品目の記憶は残る）')) { BIG = {}; LS.set('kk_big', {}); $('minfo').textContent = '消した'; } };
+$('mfile').onchange = () => { const f = $('mfile').files[0]; if (f) importMaster(f).catch(() => { $('minfo').textContent = '読み込めへんかった'; }); };
+$('mclear').onclick = async () => { if (await ask('取り込んだマスタを消す？（自分で登録した品目の記憶は残る）', '消す', true)) { BIG = {}; LS.set('kk_big', {}); $('minfo').textContent = '消した'; } };
 $('liveBtn').onclick = () => { $('file').value = ''; $('file').click(); };
 $('liveStop').onclick = stopLive;
 $('liveManual').onclick = () => { stopLive(); openEditor({ map: S.shelf }, true); };
 setMainMode();
+try { $('snd').checked = localStorage.getItem('kk_mute') !== '1'; } catch (e) {}
+$('snd').onchange = () => { try { localStorage.setItem('kk_mute', $('snd').checked ? '0' : '1'); } catch (e) {} if ($('snd').checked) beep(990, 70, 1); };
 $('bkOut').onclick = async () => { const name = 'kigen-backup-' + new Date().toISOString().slice(0, 10) + '.json'; const data = JSON.stringify({ v: 1, S, M }, null, 1);
   try { if (dlr) await dlr.save({ filename: name, data }); else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' })); a.download = name; a.click(); } } catch (e) { if (!e || e.code !== 'declined') toast('保存できへんかった'); } };
 $('bkIn').onclick = () => { $('bkFile').value = ''; $('bkFile').click(); };
-$('bkFile').onchange = async () => { const f = $('bkFile').files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.items)) throw 0; if (!(await ask('登録リスト' + j.S.items.length + '行と覚えた品目' + Object.keys(j.M || {}).length + '件で上書きする？'))) return; S = Object.assign(S, j.S); M = Object.assign({}, M, j.M || {}); saveS(); saveM(); render(); toast('復元した'); } catch (e) { toast('バックアップとして読めへんかった'); } };
+$('bkFile').onchange = async () => { const f = $('bkFile').files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.items)) throw 0; if (!(await ask('登録リスト' + j.S.items.length + '行と覚えた品目' + Object.keys(j.M || {}).length + '件で上書きする？（覚えた品目は今のものに追加）', '復元する', true))) return; S = Object.assign(S, j.S); S.items = cleanItems(j.S.items); M = Object.assign({}, M, j.M || {}); saveS(); saveM(); render(); toast('復元した'); } catch (e) { toast('バックアップとして読めへんかった'); } };
 
 /* ---------- boot ---------- */
 loadLocal(); render(); loadHot();
@@ -989,7 +1022,7 @@ setTimeout(() => zx().catch(() => {}), 300);
     const [ls, ms] = await Promise.all([db.doc('data/users/' + id + '/list').get(), db.doc('data/users/' + id + '/master').get()]);
     clearTimeout(timer);
     const localNewer = (S.items || []).length && !ls.exists;
-    if (ls.exists) { const v = ls.data(); if (v && Array.isArray(v.items)) { S = Object.assign(S, JSON.parse(JSON.stringify(v))); LS.set('kk_list', S); } }
+    if (ls.exists) { const v = ls.data(); if (v && Array.isArray(v.items)) { S = Object.assign(S, JSON.parse(JSON.stringify(v))); S.items = cleanItems(S.items); LS.set('kk_list', S); } }
     else if (localNewer) saveS();
     if (ms.exists) { const v = ms.data(); if (v && v.m) { M = Object.assign({}, M, JSON.parse(JSON.stringify(v.m))); LS.set('kk_master', M); } }
     else if (Object.keys(M).length) saveM();
