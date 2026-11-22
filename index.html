@@ -176,7 +176,7 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
     <label class="f c2"><span>棚番（様式のMAP列）</span><input id="fMap" type="text"><button type="button" class="chip" id="mapHint" style="display:none;margin-top:4px"></button></label>
     <label class="f c4 wide"><span>薬品名 <span id="fInfo" class="src"></span></span><input id="fName" type="text" placeholder="初回だけ入力（次回から自動）"></label>
     <label class="f c2"><span>期限（2709 や 27/9 でOK）</span><input id="fExp" type="text" inputmode="numeric" placeholder="YYMM"></label>
-    <div class="f c2"><span>数量（<span id="qUnit">錠・本などの数</span>）</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div></div>
+    <div class="f c2"><span>数量（<span id="qUnit">錠・本などの数</span>）</span><div class="qty"><button type="button" id="qm" aria-label="減らす">−</button><input id="fQty" type="number" inputmode="decimal" value="1"><button type="button" id="qp" aria-label="増やす">＋</button></div><div class="chips" id="stepChips"></div></div>
     <label class="f c2"><span>区分</span><select id="fCat"><option value="3">3ヶ月以上（通常）</option><option value="2">2ヶ月以上（経腸栄養剤）</option><option value="1">1ヶ月以上（抗生剤・抗真菌剤・抗インフル・鎮咳去痰剤など）</option></select></label>
     <div class="hint c6 wide" id="expHint"></div><div class="src c6 wide" id="srcHint"></div>
     <label class="f c2"><span>単価（薬価）</span><input id="fPrice" type="number" inputmode="decimal" step="any"></label>
@@ -503,11 +503,11 @@ function loadLocal() {
 let HOT = {}, hotP = null;
 function base(key) {
   const b = BIG[key], h = HOT[key];
-  return { n: (b && b[0]) || (h && h[0]) || '', p: (b && b[1] !== '' && b[1] != null) ? b[1] : (h && h[1] !== '' ? h[1] : ''), c: h ? String(h[3]) : '3', u: h ? h[2] : '', pk: h ? h[4] : '', qu: h && h[5] ? h[5] : '', f: h && +h[6] ? +h[6] : 1, dq: h && h[7] !== '' && h[7] != null ? +h[7] : '' };
+  return { n: (b && b[0]) || (h && h[0]) || '', p: (b && b[1] !== '' && b[1] != null) ? b[1] : (h && h[1] !== '' ? h[1] : ''), c: h ? String(h[3]) : '3', u: h ? h[2] : '', pk: h ? h[4] : '', qu: h && h[5] ? h[5] : '', f: h && +h[6] ? +h[6] : 1, dq: h && h[7] !== '' && h[7] != null ? +h[7] : '', st: h && h[8] ? +h[8] : '', sl: h && h[9] ? h[9] : '' };
 }
 function lookup(key) {
   const l = M[key] || {}, d = base(key);
-  return { n: l.n || d.n, p: l.p ?? d.p, s: l.s || '', c: l.c || d.c, u: d.u, pk: d.pk, qu: d.qu, f: d.f, dq: d.dq, hot: !!HOT[key] };
+  return { n: l.n || d.n, p: l.p ?? d.p, s: l.s || '', c: l.c || d.c, u: d.u, pk: d.pk, qu: d.qu, f: d.f, dq: d.dq, st: d.st, sl: d.sl, hot: !!HOT[key] };
 }
 function loadHot() {
   if (hotP) return hotP;
@@ -607,6 +607,8 @@ function openEditor(item, isNew) {
   $('fPrice').value = editing.price; $('fAmt').value = editing.amount; $('fNote').value = editing.note;
   $('fCat').value = editing.cat || '3';
   $('qUnit').textContent = editing.unit || '錠・本などの数';
+  const lm = editing.key ? lookup(editing.key) : {};
+  $('stepChips').innerHTML = lm.st ? [1, -1].map(d => `<button type="button" class="chip" data-step="${d * lm.st}">${d > 0 ? '＋' : '－'}1${escH(lm.sl)}（${lm.st}${escH(editing.unit || '')}）</button>`).join('') : '';
   $('del').style.display = isNew ? 'none' : '';
   expHint(); checkDup();
   $('ed').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -695,7 +697,7 @@ function fromCode(g, extra) {
   openEditor(item, true);
   $('srcHint').textContent = g.src || '';
   if (item.mapHint) { $('mapHint').textContent = '前回の棚番 ' + item.mapHint + ' を使う'; $('mapHint').dataset.v = item.mapHint; $('mapHint').style.display = ''; }
-  $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : '', m.f && m.f !== 1 ? '1' + (m.qu || '').replace(/\(.*/, '') + '＝' + m.f + '倍で計算' : ''].filter(Boolean).join('・') + '）' : '';
+  $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : '', m.f && m.f !== 1 ? '数量' + (m.qu || '') + '×' + m.f + '×薬価で計算' : ''].filter(Boolean).join('・') + '）' : '';
   if (m.dq !== '' && m.dq > 0) $('srcHint').textContent = ($('srcHint').textContent ? $('srcHint').textContent + '／' : '') + '数量は未開封1箱分（' + m.dq + (m.qu || '') + '）で入れてる。開封済みなら直してな';
   return item;
 }
@@ -966,6 +968,7 @@ $('shelf').addEventListener('change', () => { S.shelf = $('shelf').value.trim();
 $('shelfChips').onclick = e => { const b = e.target.closest('[data-sh]'); if (!b) return; S.shelf = b.dataset.sh; if (editing) $('fMap').value = S.shelf; saveS(); render(); };
 $('manual').onclick = () => openEditor({ map: S.shelf }, true);
 $('qm').onclick = () => { $('fQty').value = Math.max(0, (+$('fQty').value || 0) - 1); recalc(); };
+$('stepChips').onclick = e => { const b = e.target.closest('[data-step]'); if (!b) return; $('fQty').value = Math.max(0, Math.round(((+$('fQty').value || 0) + +b.dataset.step) * 100) / 100); recalc(); };
 $('qp').onclick = () => { $('fQty').value = (+$('fQty').value || 0) + 1; recalc(); };
 $('fQty').oninput = recalc; $('fPrice').oninput = recalc;
 $('fExp').oninput = () => { expHint(); checkDup(); };
