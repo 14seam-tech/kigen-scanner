@@ -9,33 +9,35 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="期限スキャナ">
-<meta name="theme-color" content="#e4002b">
+<meta name="theme-color" content="#7fcfa8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,800&family=Archivo:wght@400;600&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
 /*
 VOICE: clinical work tool, terse, fast — every tap saves a second on the shelf floor
 IDEA: a pharmacy shelf label / dispensing slip: black rules, a red signal for 期限
 PICTURE: the scan station itself — one huge camera button and the live editor
-COLOUR and TYPE: white, black ink, signal red #e4002b, one grey; Archivo wide numerals + Noto Sans JP
+COLOUR and TYPE: soft mint (the form's own green header), warm off-white, gentle coral only for warnings; Zen Maru Gothic throughout
 LAYOUT: sticky scan bar on top, editor sheet, then the ledger; one column on phones
 */
-:root{color-scheme:light dark;--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f2f2f2);--mut:light-dark(#6b6b6b,#a3a3a3);--line:light-dark(#d9d9d9,#2c2c2c);--soft:light-dark(#f3f3f3,#1a1a1a);--red:#e4002b;--redsoft:light-dark(#fde6ea,#3a0c15);--ok:light-dark(#0a6b3d,#5fd39a)}
+:root{color-scheme:light dark;--bg:light-dark(#f6fbf8,#17211c);--card:light-dark(#ffffff,#1f2b25);--ink:light-dark(#2d3b34,#e6f0ea);--mut:light-dark(#7a8a82,#9fb2a8);--line:light-dark(#d7e8de,#2f4038);--soft:light-dark(#e8f5ee,#243229);--acc:light-dark(#4fb889,#6fd3a6);--accink:light-dark(#ffffff,#10301f);--accsoft:light-dark(#d4f1e2,#25423a);--warn:light-dark(#e3826b,#f0a08c);--warnsoft:light-dark(#fdebe5,#3d2a25);--red:var(--acc);--redsoft:var(--warnsoft)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans JP",system-ui,sans-serif;overflow-x:clip;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.num{font-family:"Archivo","Noto Sans JP",sans-serif;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Zen Maru Gothic","Hiragino Maru Gothic ProN",system-ui,sans-serif;overflow-x:clip;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.num{font-variant-numeric:tabular-nums}
 .wrap{max-width:1040px;margin:0 auto;padding:0 max(4vw,14px)}
-header{border-top:6px solid var(--ink);padding:16px 0 10px}
+header{padding:18px 0 12px}
 .hd{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;justify-content:space-between}
-h1{margin:0;font-size:clamp(24px,5vw,34px);line-height:1.05;font-weight:900;letter-spacing:-.01em}
+h1{margin:0;font-size:clamp(24px,5vw,34px);line-height:1.1;font-weight:900;color:var(--ink)}
+h1::before{content:"";display:inline-block;width:.75em;height:.75em;border-radius:50%;background:var(--acc);margin-right:.35em;vertical-align:-.02em;box-shadow:.25em .18em 0 -.08em var(--accsoft)}
 .tgt{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--mut);white-space:nowrap}
 .tgt select{width:auto}
 .stats{display:flex;gap:18px;margin-top:10px;font-size:13px;color:var(--mut)}
-.stats b{display:block;font:800 26px/1 "Archivo",sans-serif;font-stretch:112%;color:var(--ink)}
-.station{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:2px solid var(--ink);padding:10px 0}
+.stats{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px!important}.stats>div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 10px;font-size:12px}
+.stats b{display:block;font:900 24px/1.1 "Zen Maru Gothic",sans-serif;color:var(--acc);font-variant-numeric:tabular-nums}
+.station{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;box-shadow:0 6px 14px -12px rgba(40,90,60,.35)}
 .srow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10px}
-.shoot{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border:0;border-radius:10px;background:var(--red);color:#fff;font:900 19px/1.2 "Noto Sans JP",sans-serif;cursor:pointer}
+.shoot{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border:0;border-radius:22px;background:var(--acc);color:var(--accink);font:900 19px/1.2 "Zen Maru Gothic",sans-serif;cursor:pointer;box-shadow:0 4px 0 color-mix(in srgb,var(--acc) 70%,#000 30%)}
 .shoot svg{width:28px;height:28px;flex:none}
 .shoot:active{transform:scale(.98)}
 .wedge{display:flex;flex-direction:column;gap:6px}
@@ -43,19 +45,19 @@ h1{margin:0;font-size:clamp(24px,5vw,34px);line-height:1.05;font-weight:900;lett
 .sub{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:8px;font-size:13px;color:var(--mut)}
 .sub label{display:flex;gap:6px;align-items:center;min-height:32px}
 .status{font-size:13px;min-height:20px;margin-top:4px}
-.status.err{color:var(--red)}
+.status.err{color:var(--warn)}
 input,select,button,textarea{font:inherit;font-size:16px;color:inherit}
-input[type=text],input[type=number],input:not([type]),select{width:100%;min-height:44px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg)}
-input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--red);outline-offset:1px}
-.btn{min-height:44px;padding:8px 14px;border:1.5px solid var(--ink);border-radius:8px;background:var(--bg);cursor:pointer;font-weight:700}
-.btn.pri{background:var(--ink);color:var(--bg)}
-.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+input[type=text],input[type=number],input:not([type]),select{width:100%;min-height:44px;padding:8px 10px;border:1.5px solid var(--line);border-radius:14px;background:var(--card)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.btn{min-height:44px;padding:8px 16px;border:1.5px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer;font-weight:700}
+.btn.pri{background:var(--accsoft);border-color:var(--acc);color:var(--ink)}
+.btn.red{background:var(--acc);border-color:var(--acc);color:var(--accink)}
 .btn.ghost{border-color:var(--line);font-weight:400}
 .btn:disabled{opacity:.45}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chip{min-height:32px;padding:3px 10px;border-radius:99px;border:1.5px solid var(--line);background:var(--soft);cursor:pointer;font-size:14px}
-.chip.on{border-color:var(--ink);background:var(--ink);color:var(--bg)}
-.ed{display:none;margin:14px 0;border:2px solid var(--ink);border-radius:12px;padding:14px;background:var(--bg)}
+.chip.on{border-color:var(--acc);background:var(--accsoft);color:var(--ink);font-weight:700}
+.ed{display:none;margin:14px 0;border:1.5px solid var(--line);border-radius:22px;padding:16px;background:var(--card);box-shadow:0 10px 24px -18px rgba(40,90,60,.45)}
 .ed.open{display:block}
 .ed h2{margin:0 0 4px;font-size:15px;color:var(--mut);font-weight:700;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
 .grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px 12px}
@@ -63,31 +65,31 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid 
 .f>span{font-size:13px;color:var(--mut)}
 .c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}
 .qty{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:4px}
-.qty button{min-height:44px;border:1.5px solid var(--line);border-radius:8px;background:var(--soft);font-size:22px;cursor:pointer}
+.qty button{min-height:44px;border:1.5px solid var(--line);border-radius:14px;background:var(--soft);font-size:22px;cursor:pointer}
 .qty input{text-align:center}
 .hint{font-size:13px;color:var(--mut);min-height:18px}
-.hint.bad{color:var(--red);font-weight:700}
-.dup{display:none;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--redsoft);font-size:14px;align-items:center;gap:10px;flex-wrap:wrap}
+.hint.bad{color:var(--warn);font-weight:700}
+.dup{display:none;margin-top:10px;padding:8px 12px;border-radius:14px;background:var(--warnsoft);font-size:14px;align-items:center;gap:10px;flex-wrap:wrap}
 .dup.on{display:flex}
 .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .acts .grow{flex:1 1 220px}
 .ai{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--soft)}
 .ledger{margin:18px 0 8px}
-.lh{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;border-top:6px solid var(--ink);padding-top:10px}
+.lh{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding-top:4px}
 .lh h2{margin:0;font-size:20px}
 .lh select{width:auto}
 table{width:100%;border-collapse:collapse;margin-top:8px}
-th{font-size:13px;color:var(--mut);text-align:left;font-weight:700;border-bottom:2px solid var(--ink);padding:6px 6px}
+th{font-size:13px;color:var(--mut);text-align:left;font-weight:700;border-bottom:2px solid var(--line);padding:6px 6px}
 td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:middle}
 td.r,th.r{text-align:right}
 tr.done td{color:var(--mut)}
 tr.done .nm{text-decoration:line-through}
 .nm{font-weight:700}
 .badge{display:inline-block;white-space:nowrap;font-size:12px;padding:1px 7px;border-radius:99px;margin-left:4px;background:var(--soft)}
-.badge.bad{background:var(--red);color:#fff}
+.badge.bad{background:var(--warnsoft);color:var(--warn);font-weight:700}
 .badge.out{background:var(--line)}
 .ck{width:26px;height:26px;accent-color:var(--red)}
-.edit{min-height:36px;padding:4px 10px;border:1.5px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+.edit{min-height:36px;padding:4px 12px;border:1.5px solid var(--line);border-radius:999px;background:none;cursor:pointer}
 .empty{padding:28px 0;color:var(--mut)}
 .empty ol{margin:8px 0 0;padding-left:20px}
 footer{margin:20px 0 40px;display:flex;flex-direction:column;gap:12px}
@@ -96,17 +98,17 @@ footer{margin:20px 0 40px;display:flex;flex-direction:column;gap:12px}
 details{border-top:1px solid var(--line);padding-top:10px}
 summary{cursor:pointer;font-weight:700;min-height:32px}
 .xl{display:flex;gap:8px;align-items:center;min-height:40px}.xl input{width:22px;height:22px;accent-color:var(--red)}.xl .num{color:var(--mut);font-size:14px}
-.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:92vw;z-index:20}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:92vw;z-index:20}
 .toast.on{opacity:1}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
 .modal.on{display:flex}
-.modal>div{background:var(--bg);border-radius:12px;padding:18px;max-width:420px;width:100%}
+.modal>div{background:var(--card);border-radius:22px;padding:18px;max-width:420px;width:100%}
 .live{display:none;position:fixed;inset:0;background:#000;z-index:25;flex-direction:column}
 .live.on{display:flex}
 .live video{flex:1;width:100%;object-fit:cover}
 .live .bar{display:flex;gap:8px;padding:12px;justify-content:center}
 .live .aim{position:absolute;left:8%;right:8%;top:30%;height:32%;border:3px solid rgba(255,255,255,.85);border-radius:12px;pointer-events:none;transition:border-color .15s}
-.live .aim.hit{border-color:var(--red)}
+.live .aim.hit{border-color:var(--acc)}
 .live .lmsg{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 14px);text-align:center;color:#fff;font-weight:700;font-size:16px;padding:0 16px;text-shadow:0 1px 4px #000}
 .live .bar{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .src{font-size:12px;color:var(--mut)}
