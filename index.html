@@ -215,7 +215,10 @@ summary{cursor:pointer;font-weight:700;min-height:32px}
   <p class="note" id="saveNote">入力した内容は自動で保存されるで。</p>
   <div class="fa"><button class="btn ghost" id="bkOut" type="button">バックアップを保存</button><button class="btn ghost" id="bkIn" type="button">バックアップから復元</button><input id="bkFile" type="file" accept=".json,application/json" hidden></div>
   <details>
-    <summary>医薬品マスタ</summary>
+    <summary>棚番MAP・医薬品マスタ</summary>
+    <p class="note" id="mapInfo"></p>
+    <div class="fa"><input id="mapFile" type="file" accept=".json,application/json" hidden><button class="btn" id="mapBtn" type="button">棚番MAPを取り込む</button><button class="btn ghost" id="mapClear" type="button">棚番MAPを消す</button></div>
+    <p class="note">棚番MAPのファイルはこのスマホの中にだけ保存して、外には送らへん。</p>
     <p class="note" id="hotInfo">内蔵マスタを読み込み中…</p>
     <p class="note">内蔵マスタはMEDIS医薬品HOTコードマスター（販売包装単位コード付）と厚労省の薬価基準収載品目リストから作成。PTPシート（調剤包装）のコードは公的マスタに無いから、初回だけ手入力（以後は自動）。レセコン等からGTIN付きの品目一覧CSVを出せるなら、ここで追加取り込みするとPTPも埋まる。</p>
     <div class="fa"><input id="mfile" type="file" accept=".csv,.tsv,.txt,text/csv" hidden><button class="btn" id="mbtn" type="button">CSVを選ぶ</button><button class="btn ghost" id="mclear" type="button">取り込んだマスタを消す</button></div>
@@ -504,6 +507,11 @@ function loadLocal() {
 
 /* ---------- lookup ---------- */
 let HOT = {}, hotP = null;
+let SMAP = null;  // 棚番MAP: {v, k:{key:[shelf]}, order:{shelf:idx}}
+try { SMAP = JSON.parse(localStorage.getItem('kk_map') || 'null'); } catch (e) { SMAP = null; }
+const mapShelves = key => (SMAP && SMAP.k && key && SMAP.k[key]) || [];
+const shelfCmp = (a, b) => { const o = SMAP && SMAP.order, ia = o && a in o ? o[a] : 1e9, ib = o && b in o ? o[b] : 1e9; return ia - ib || (a || '').localeCompare(b || '', 'ja', { numeric: true }); };
+function mapInfo() { $('mapInfo').textContent = SMAP ? '棚番MAP取り込み済み：' + Object.keys(SMAP.order || {}).length + '棚・' + Object.keys(SMAP.k || {}).length + 'コード（' + (SMAP.v || '') + '）。かざしたら棚番が自動で入る。' : '棚番MAPは未取り込み。'; }
 function base(key) {
   const b = BIG[key], h = HOT[key];
   return { n: (b && b[0]) || (h && h[0]) || '', p: (b && b[1] !== '' && b[1] != null) ? b[1] : (h && h[1] !== '' ? h[1] : ''), c: h ? String(h[3]) : '3', u: h ? h[2] : '', pk: h ? h[4] : '', qu: h && h[5] ? h[5] : '', f: h && +h[6] ? +h[6] : 1, dq: h && h[7] !== '' && h[7] != null ? +h[7] : '', st: h && h[8] ? +h[8] : '', sl: h && h[9] ? h[9] : '' };
@@ -563,7 +571,7 @@ function renderMonths() {
 }
 function sorted(all) {
   const a = S.items.filter(r => all || !mFilter || (r.expiry || '_') === mFilter);
-  const cmpMap = (x, y) => (x.map || '').localeCompare(y.map || '', 'ja', { numeric: true });
+  const cmpMap = (x, y) => shelfCmp(x.map || '', y.map || '');
   if (S.sort === 'map') a.sort((x, y) => cmpMap(x, y) || (x.expiry || '').localeCompare(y.expiry || '') || (x.name || '').localeCompare(y.name || '', 'ja'));
   else if (S.sort === 'exp') a.sort((x, y) => (x.expiry || '9').localeCompare(y.expiry || '9') || cmpMap(x, y));
   else a.sort((x, y) => x.t - y.t);
@@ -668,7 +676,7 @@ function commit() {
   if (showQtyWarn() && !editing._qtyOk) { editing._qtyOk = true; buzz('err'); toast('数量の単位を確認してな（そのままでええならもう一回登録）'); $('qWarn').scrollIntoView({ block: 'center' }); return false; }
   const e = collect();
   if (!e.name && !e.gtin) { toast('薬品名を入れてな'); $('fName').focus(); return false; }
-  const rest = Object.assign({}, e); delete rest._new; delete rest.mapHint; delete rest._qtyOk;
+  const rest = Object.assign({}, e); delete rest._new; delete rest.mapHint; delete rest._qtyOk; delete rest.fromMap;
   const i = S.items.findIndex(x => x.id === e.id);
   if (i >= 0) S.items[i] = rest; else S.items.push(rest);
   if (e.key) { const d = base(e.key), r = { s: e.map, c: e.cat }; if (e.name && e.name !== d.n) r.n = e.name; if (e.price !== '' && e.price !== d.p) r.p = e.price; M[e.key] = r; saveM(); }
@@ -709,12 +717,13 @@ function best(hits) {
 }
 function fromCode(g, extra) {
   const key = Core.key(g.gtin), m = lookup(key);
-  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: S.shelf || m.s || '', mapHint: m.s && S.shelf && m.s !== S.shelf ? m.s : '', cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: m.dq !== '' && isFinite(m.dq) && m.dq > 0 ? m.dq : 1, unit: m.qu || '', factor: m.f || 1 };
+  const item = { gtin: g.gtin || '', key, name: m.n, price: m.p, map: mapShelves(key)[0] || S.shelf || m.s || '', mapHint: mapShelves(key).length ? (mapShelves(key)[1] || '') : (m.s && S.shelf && m.s !== S.shelf ? m.s : ''), fromMap: mapShelves(key).length > 0, cat: m.c, expiry: g.expiry || '', note: g.lot ? 'Lot ' + g.lot : '', qty: m.dq !== '' && isFinite(m.dq) && m.dq > 0 ? m.dq : 1, unit: m.qu || '', factor: m.f || 1 };
   if (item.price !== '' && item.price != null) item.amount = amountOf(item.qty, item.factor, item.price);
   Object.assign(item, extra || {});
   openEditor(item, true);
   $('srcHint').textContent = g.src || '';
-  if (item.mapHint) { $('mapHint').textContent = '前回の棚番 ' + item.mapHint + ' を使う'; $('mapHint').dataset.v = item.mapHint; $('mapHint').style.display = ''; }
+  if (item.fromMap) $('srcHint').textContent = ($('srcHint').textContent ? $('srcHint').textContent + '／' : '') + '棚番はMAPから' + (mapShelves(key).length > 1 ? '（ほかに ' + mapShelves(key).slice(1).join('・') + ' にもある）' : '');
+  if (item.mapHint) { $('mapHint').textContent = (item.fromMap ? '別の棚 ' : '前回の棚番 ') + item.mapHint + ' を使う'; $('mapHint').dataset.v = item.mapHint; $('mapHint').style.display = ''; }
   $('fInfo').textContent = m.pk || m.u ? '（' + [m.pk, m.p !== '' && m.u ? '薬価' + m.p + '円/' + m.u : '', m.f && m.f !== 1 ? '数量' + (m.qu || '') + '×' + m.f + '×薬価で計算' : ''].filter(Boolean).join('・') + '）' : '';
   if (m.dq !== '' && m.dq > 0) $('srcHint').textContent = ($('srcHint').textContent ? $('srcHint').textContent + '／' : '') + '数量は未開封1箱分（' + m.dq + (m.qu || '') + '）で入れてる。開封済みなら直してな';
   return item;
@@ -919,7 +928,7 @@ function shootNext() { if (liveSupported) startLive(); else { $('file').value = 
 
 /* ---------- export ---------- */
 function exportRows(months) {
-  const cmp = (x, y) => (x.map || '').localeCompare(y.map || '', 'ja', { numeric: true }) || (x.name || '').localeCompare(y.name || '', 'ja');
+  const cmp = (x, y) => shelfCmp(x.map || '', y.map || '') || (x.name || '').localeCompare(y.name || '', 'ja');
   return S.items.filter(r => !months || months.includes(r.expiry || '')).slice().sort(cmp)
     .map(r => ({ done: r.done, map: r.map, name: r.name, qty: r.unit && r.qty !== '' && !/^(錠|カプセル)$/.test(r.unit) ? r.qty + r.unit : r.qty, amount: r.amount, expiry: r.expiry, note: r.note }));
 }
@@ -1013,6 +1022,12 @@ $('clearDone').onclick = async () => { const n = S.items.filter(x => x.done).len
 $('clearAll').onclick = async () => { if (!S.items.length) return; if (await ask('登録リスト' + S.items.length + '行を全部削除する？（覚えた品名・単価・棚番は残る）', '全部削除する', true)) { S.items = []; saveS(); render(); } };
 $('mbtn').onclick = () => { $('mfile').value = ''; $('mfile').click(); };
 $('mfile').onchange = () => { const f = $('mfile').files[0]; if (f) importMaster(f).catch(() => { $('minfo').textContent = '読み込めへんかった'; }); };
+$('mapBtn').onclick = () => { $('mapFile').value = ''; $('mapFile').click(); };
+$('mapFile').onchange = async () => { const f = $('mapFile').files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j || typeof j.k !== 'object' || typeof j.order !== 'object') throw 0;
+  const k = {}; for (const [key, v] of Object.entries(j.k)) if (/^\d{12}$/.test(key) && Array.isArray(v)) k[key] = v.map(x => String(x).slice(0, 40)).slice(0, 5);
+  const order = {}; for (const [sh, i] of Object.entries(j.order)) order[String(sh).slice(0, 40)] = +i || 0;
+  SMAP = { v: String(j.v || '').slice(0, 60), k, order }; try { localStorage.setItem('kk_map', JSON.stringify(SMAP)); } catch (e) { toast('容量不足でMAPを保存できへんかった（開いてる間だけ有効）'); } mapInfo(); render(); toast('棚番MAPを取り込んだ'); } catch (e) { toast('棚番MAPのファイルとして読めへんかった'); } };
+$('mapClear').onclick = async () => { if (!SMAP) return; if (await ask('棚番MAPを消す？', '消す', true)) { SMAP = null; try { localStorage.removeItem('kk_map'); } catch (e) {} mapInfo(); render(); } };
 $('mclear').onclick = async () => { if (await ask('取り込んだマスタを消す？（自分で登録した品目の記憶は残る）', '消す', true)) { BIG = {}; LS.set('kk_big', {}); $('minfo').textContent = '消した'; } };
 $('liveBtn').onclick = () => { $('file').value = ''; $('file').click(); };
 $('liveStop').onclick = stopLive;
@@ -1026,7 +1041,7 @@ $('bkIn').onclick = () => { $('bkFile').value = ''; $('bkFile').click(); };
 $('bkFile').onchange = async () => { const f = $('bkFile').files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.S || !Array.isArray(j.S.items)) throw 0; if (!(await ask('登録リスト' + j.S.items.length + '行と覚えた品目' + Object.keys(j.M || {}).length + '件で上書きする？（覚えた品目は今のものに追加）', '復元する', true))) return; S = Object.assign(S, j.S); S.items = cleanItems(j.S.items); M = Object.assign({}, M, j.M || {}); saveS(); saveM(); render(); toast('復元した'); } catch (e) { toast('バックアップとして読めへんかった'); } };
 
 /* ---------- boot ---------- */
-loadLocal(); render(); loadHot();
+loadLocal(); render(); loadHot(); mapInfo();
 $('minfo').textContent = Object.keys(BIG).length ? Object.keys(BIG).length + '品目のマスタを取り込み済み' : '';
 setTimeout(() => zx().catch(() => {}), 300);
 (async () => {
